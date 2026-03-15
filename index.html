@@ -118,7 +118,7 @@
                 </div>
             </div>
 
-            <!-- Genre & Instrument Selection - NEW! -->
+            <!-- Genre, Instrument & Duration Selection -->
             <div class="music-controls">
                 <div class="control-row">
                     <div class="control-group">
@@ -150,11 +150,46 @@
                         </select>
                     </div>
                 </div>
+
+                <!-- NEW: Duration Control Row -->
+                <div class="control-row">
+                    <div class="control-group">
+                        <label class="control-label">
+                            <i class="far fa-clock"></i> Duration
+                        </label>
+                        <select id="durationSelect" class="duration-select">
+                            <option value="60">⏱️ 1 minute</option>
+                            <option value="120">⏱️ 2 minutes</option>
+                            <option value="180">⏱️ 3 minutes</option>
+                            <option value="240">⏱️ 4 minutes</option>
+                            <option value="300" selected>⏱️ 5 minutes</option>
+                            <option value="600">⏱️ 10 minutes</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Time Remaining Display -->
+                    <div class="control-group time-display">
+                        <label class="control-label">
+                            <i class="fas fa-hourglass-half"></i> Time Remaining
+                        </label>
+                        <div class="time-remaining" id="timeRemaining">
+                            <span class="time-number" id="minutesRemaining">5</span>
+                            <span class="time-label">min</span>
+                            <span class="time-number" id="secondsRemaining">00</span>
+                            <span class="time-label">sec</span>
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- Genre Mood Indicator -->
                 <div class="genre-mood" id="genreMood">
                     <span class="mood-icon">🎻</span>
                     <span class="mood-text">Elegant & Refined</span>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar" id="progressBar"></div>
                 </div>
             </div>
 
