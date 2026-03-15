@@ -23,12 +23,19 @@ class EmotionSymphony {
         this.shareModal = document.getElementById('shareModal');
         this.emotionalFingerprint = document.getElementById('emotionalFingerprint');
         this.copyShareLink = document.getElementById('copyShareLink');
+        
+        // NEW: Genre & Instrument Elements
+        this.genreSelect = document.getElementById('genreSelect');
+        this.instrumentSelect = document.getElementById('instrumentSelect');
+        this.genreMood = document.getElementById('genreMood');
 
         // Audio Properties
         this.synth = null;
         this.isPlaying = false;
         this.currentNotes = [];
         this.animationFrame = null;
+        this.currentInstrument = 'piano';
+        this.currentGenre = 'classical';
 
         // Emotion History
         this.emotionHistory = this.loadHistory();
@@ -58,29 +65,225 @@ class EmotionSymphony {
         
         // Check for shared emotion in URL
         this.checkForSharedEmotion();
+        
+        // Update genre mood
+        this.updateGenreMood();
     }
 
     initSynth() {
-        // Create a polyphonic synthesizer with reverb for beautiful sound
-        this.synth = new Tone.PolySynth(Tone.Synth, {
-            oscillator: {
-                type: "sine"
+        // Create a polyphonic synthesizer
+        this.updateInstrument(this.instrumentSelect.value);
+    }
+
+    updateInstrument(instrument) {
+        const instruments = {
+            piano: {
+                oscillator: { type: "triangle" },
+                envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
             },
-            envelope: {
-                attack: 0.02,
-                decay: 0.1,
-                sustain: 0.3,
-                release: 1
+            guitar: {
+                oscillator: { type: "sawtooth" },
+                envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.5 }
+            },
+            strings: {
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.1, decay: 0.2, sustain: 0.4, release: 1.5 }
+            },
+            flute: {
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.05, decay: 0.1, sustain: 0.4, release: 0.8 }
+            },
+            synth: {
+                oscillator: { type: "sawtooth" },
+                envelope: { attack: 0.01, decay: 0.2, sustain: 0.3, release: 1.2 }
+            },
+            bell: {
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.001, decay: 0.5, sustain: 0, release: 0.8 }
+            },
+            pad: {
+                oscillator: { type: "sawtooth" },
+                envelope: { attack: 0.5, decay: 0.3, sustain: 0.6, release: 2 }
+            },
+            bass: {
+                oscillator: { type: "triangle" },
+                envelope: { attack: 0.01, decay: 0.1, sustain: 0.4, release: 0.5 }
             }
-        }).toDestination();
+        };
+
+        const settings = instruments[instrument] || instruments.piano;
         
-        // Add reverb for ambient effect
+        this.synth = new Tone.PolySynth(Tone.Synth, settings).toDestination();
+        
+        // Add effects based on genre
+        this.updateGenreEffects(this.genreSelect.value);
+    }
+
+    updateGenreEffects(genre) {
+        // Clear existing effects
+        this.synth.disconnect();
+        
         const reverb = new Tone.Reverb({
-            decay: 2,
-            wet: 0.3
+            decay: genre === 'ambient' ? 4 : genre === 'cinematic' ? 3 : 2,
+            wet: genre === 'ambient' ? 0.6 : genre === 'cinematic' ? 0.4 : 0.3
         }).toDestination();
         
+        const delay = new Tone.FeedbackDelay({
+            delayTime: genre === 'jazz' ? '8n' : '4n',
+            feedback: genre === 'electronic' ? 0.5 : 0.3,
+            wet: genre === 'jazz' ? 0.3 : genre === 'electronic' ? 0.4 : 0.2
+        }).toDestination();
+        
+        // Connect synth through effects
         this.synth.connect(reverb);
+        this.synth.connect(delay);
+        
+        // Update visualizer class for genre-specific glow
+        this.visualizer.closest('.visualizer-container').className = 
+            `visualizer-container ${genre}`;
+    }
+
+    updateGenreMood() {
+        const genre = this.genreSelect.value;
+        const moods = {
+            classical: { icon: '🎻', text: 'Elegant & Refined' },
+            jazz: { icon: '🎷', text: 'Smooth & Improvised' },
+            electronic: { icon: '🎛️', text: 'Energetic & Modern' },
+            ambient: { icon: '🌊', text: 'Peaceful & Spacious' },
+            cinematic: { icon: '🎬', text: 'Epic & Dramatic' }
+        };
+        
+        const mood = moods[genre] || moods.classical;
+        this.genreMood.innerHTML = `
+            <span class="mood-icon">${mood.icon}</span>
+            <span class="mood-text">${mood.text}</span>
+        `;
+        
+        // Update class for styling
+        this.genreMood.className = `genre-mood ${genre}`;
+    }
+
+    getGenreScales(genre) {
+        const scales = {
+            classical: {
+                major: ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'],
+                minor: ['C4', 'D4', 'Eb4', 'F4', 'G4', 'Ab4', 'Bb4', 'C5'],
+                pentatonic: ['C4', 'D4', 'E4', 'G4', 'A4', 'C5']
+            },
+            jazz: {
+                major: ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5', 'D5', 'E5'],
+                minor: ['C4', 'D4', 'Eb4', 'F4', 'G4', 'Ab4', 'Bb4', 'C5', 'D5'],
+                blues: ['C4', 'Eb4', 'F4', 'F#4', 'G4', 'Bb4', 'C5']
+            },
+            electronic: {
+                major: ['C3', 'E3', 'G3', 'C4', 'E4', 'G4', 'C5'],
+                minor: ['C3', 'Eb3', 'G3', 'C4', 'Eb4', 'G4', 'C5'],
+                synth: ['C3', 'D3', 'F3', 'G3', 'A3', 'C4', 'D4', 'F4']
+            },
+            ambient: {
+                major: ['C3', 'G3', 'C4', 'E4', 'G4', 'C5'],
+                minor: ['C3', 'G3', 'C4', 'Eb4', 'G4', 'C5'],
+                drone: ['C3', 'G3', 'C4', 'G4', 'C5']
+            },
+            cinematic: {
+                major: ['C3', 'E3', 'G3', 'C4', 'E4', 'G4', 'C5', 'E5'],
+                minor: ['C3', 'Eb3', 'G3', 'C4', 'Eb4', 'G4', 'C5', 'Eb5'],
+                epic: ['C3', 'G3', 'C4', 'G4', 'C5', 'E5', 'G5']
+            }
+        };
+        
+        return scales[genre] || scales.classical;
+    }
+
+    generateMelody(energy, happiness, calmness) {
+        const genre = this.genreSelect.value;
+        const scales = this.getGenreScales(genre);
+        
+        // Choose scale based on happiness and genre
+        let scale;
+        if (genre === 'jazz' && happiness > 70) {
+            scale = scales.major;
+        } else if (genre === 'jazz' && happiness < 30) {
+            scale = scales.blues || scales.minor;
+        } else if (genre === 'electronic') {
+            scale = energy > 60 ? scales.synth : scales.major;
+        } else if (genre === 'ambient') {
+            scale = scales.drone || scales.major;
+        } else if (genre === 'cinematic') {
+            scale = energy > 70 ? scales.epic : scales.major;
+        } else {
+            scale = happiness > 60 ? scales.major : 
+                   happiness < 30 ? scales.minor : scales.pentatonic || scales.major;
+        }
+        
+        // Determine tempo based on energy and genre
+        let tempo;
+        switch(genre) {
+            case 'jazz':
+                tempo = 80 + (energy * 0.8);
+                break;
+            case 'electronic':
+                tempo = 100 + (energy * 1.2);
+                break;
+            case 'ambient':
+                tempo = 40 + (energy * 0.5);
+                break;
+            case 'cinematic':
+                tempo = 60 + (energy * 1.0);
+                break;
+            default: // classical
+                tempo = 60 + (energy * 1.2);
+        }
+        
+        Tone.Transport.bpm.value = tempo;
+        
+        // Determine number of notes based on calmness and genre
+        let numNotes;
+        if (genre === 'jazz') {
+            numNotes = Math.max(6, Math.min(16, Math.floor(calmness / 6)));
+        } else if (genre === 'ambient') {
+            numNotes = Math.max(3, Math.min(8, Math.floor(calmness / 12)));
+        } else {
+            numNotes = Math.max(4, Math.min(12, Math.floor(calmness / 8)));
+        }
+        
+        // Generate notes with emotion-based variations
+        const notes = [];
+        const pattern = [];
+        
+        for (let i = 0; i < numNotes; i++) {
+            let noteIndex;
+            
+            // Create patterns based on genre
+            if (genre === 'jazz' && i % 2 === 0) {
+                // Jazz often uses walking bass patterns
+                noteIndex = (i * 2) % scale.length;
+            } else if (genre === 'electronic') {
+                // Electronic often uses repetitive patterns
+                noteIndex = i % 4;
+            } else {
+                noteIndex = Math.floor(Math.random() * scale.length);
+            }
+            
+            let note = scale[noteIndex % scale.length];
+            
+            // Genre-specific variations
+            if (genre === 'cinematic' && energy > 70 && Math.random() > 0.7) {
+                note = note.replace('4', '5').replace('3', '4');
+            }
+            
+            if (genre === 'jazz' && happiness < 40) {
+                note += 'b'; // Add flats for sad jazz
+            }
+            
+            if (genre === 'electronic' && Math.random() > 0.8) {
+                note += '#'; // Add sharps for electronic tension
+            }
+            
+            notes.push(note);
+        }
+        
+        return { notes, tempo };
     }
 
     setupEventListeners() {
@@ -88,6 +291,19 @@ class EmotionSymphony {
         this.energySlider.addEventListener('input', () => this.updateSliderDisplays());
         this.happinessSlider.addEventListener('input', () => this.updateSliderDisplays());
         this.calmnessSlider.addEventListener('input', () => this.updateSliderDisplays());
+        
+        // NEW: Genre & Instrument listeners
+        this.genreSelect.addEventListener('change', () => {
+            this.updateGenreMood();
+            this.updateGenreEffects(this.genreSelect.value);
+            if (this.isPlaying) {
+                this.stopMusic();
+            }
+        });
+        
+        this.instrumentSelect.addEventListener('change', () => {
+            this.updateInstrument(this.instrumentSelect.value);
+        });
         
         // Button clicks
         this.playButton.addEventListener('click', () => this.playEmotion());
@@ -131,49 +347,6 @@ class EmotionSymphony {
         this.currentDateSpan.textContent = now.toLocaleDateString('en-US', options);
     }
 
-    generateMelody(energy, happiness, calmness) {
-        const scales = {
-            major: ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'],
-            minor: ['C4', 'D4', 'Eb4', 'F4', 'G4', 'Ab4', 'Bb4', 'C5'],
-            pentatonic: ['C4', 'D4', 'E4', 'G4', 'A4', 'C5']
-        };
-        
-        // Choose scale based on happiness
-        let scale;
-        if (happiness > 70) scale = scales.major;
-        else if (happiness > 30) scale = scales.pentatonic;
-        else scale = scales.minor;
-        
-        // Determine tempo based on energy
-        const tempo = 60 + (energy * 1.5);
-        Tone.Transport.bpm.value = tempo;
-        
-        // Determine number of notes based on calmness (calmer = fewer notes)
-        const numNotes = Math.max(4, Math.min(12, Math.floor(calmness / 10)));
-        
-        // Generate notes with emotion-based variations
-        const notes = [];
-        for (let i = 0; i < numNotes; i++) {
-            // Random note from scale
-            const noteIndex = Math.floor(Math.random() * scale.length);
-            let note = scale[noteIndex];
-            
-            // Higher energy = higher octave sometimes
-            if (energy > 70 && Math.random() > 0.7) {
-                note = note.replace('4', '5');
-            }
-            
-            // Lower calmness = more variation
-            if (calmness < 30 && Math.random() > 0.5) {
-                note += '#'; // Add sharps for tension
-            }
-            
-            notes.push(note);
-        }
-        
-        return { notes, tempo };
-    }
-
     async playEmotion() {
         if (this.isPlaying) {
             this.stopMusic();
@@ -183,30 +356,48 @@ class EmotionSymphony {
         const happiness = parseInt(this.happinessSlider.value);
         const calmness = parseInt(this.calmnessSlider.value);
         
-        // Generate melody
+        // Generate melody with current genre
         const { notes, tempo } = this.generateMelody(energy, happiness, calmness);
         this.currentNotes = notes;
         
         // Start Tone.js audio context (required by browsers)
         if (Tone.context.state !== 'running') {
             await Tone.start();
+            await Tone.context.resume();
         }
         
-        // Schedule notes
+        // Schedule notes with genre-specific timing
         const now = Tone.now();
         let time = now;
         
         notes.forEach((note, index) => {
-            // Calculate duration based on calmness (calmer = longer notes)
-            const duration = calmness < 30 ? '8n' : calmness > 70 ? '2n' : '4n';
+            // Genre-specific durations
+            let duration;
+            const genre = this.genreSelect.value;
             
-            // Add expression based on happiness
+            if (genre === 'jazz') {
+                duration = index % 2 === 0 ? '4n' : '8n';
+            } else if (genre === 'ambient') {
+                duration = '2n';
+            } else if (genre === 'cinematic') {
+                duration = calmness < 30 ? '4n' : '2n';
+            } else {
+                duration = calmness < 30 ? '8n' : calmness > 70 ? '2n' : '4n';
+            }
+            
+            // Velocity based on happiness
             const velocity = happiness / 100;
             
             this.synth.triggerAttackRelease(note, duration, time, velocity);
             
-            // Space notes based on energy (higher energy = faster succession)
-            time += calmness < 30 ? 0.2 : calmness > 70 ? 0.8 : 0.4;
+            // Genre-specific spacing
+            if (genre === 'jazz') {
+                time += 0.3;
+            } else if (genre === 'ambient') {
+                time += 0.8;
+            } else {
+                time += calmness < 30 ? 0.2 : calmness > 70 ? 0.8 : 0.4;
+            }
         });
         
         this.isPlaying = true;
@@ -237,8 +428,22 @@ class EmotionSymphony {
         notes.forEach((note, index) => {
             const noteElement = document.createElement('div');
             noteElement.className = 'note';
-            noteElement.textContent = note.replace('4', '').replace('5', '');
+            noteElement.textContent = note.replace(/[0-9]/g, '').replace(/#/g, '♯').replace(/b/g, '♭');
             noteElement.style.animationDelay = `${index * 0.1}s`;
+            
+            // Color notes based on genre
+            const genre = this.genreSelect.value;
+            const colors = {
+                classical: '#8B5CF6',
+                jazz: '#F59E0B',
+                electronic: '#EC4899',
+                ambient: '#10B981',
+                cinematic: '#3B82F6'
+            };
+            
+            noteElement.style.background = colors[genre] || '#6366f1';
+            noteElement.style.boxShadow = `0 0 15px ${colors[genre] || '#6366f1'}`;
+            
             this.noteSequence.appendChild(noteElement);
         });
     }
@@ -250,6 +455,7 @@ class EmotionSymphony {
             const energy = parseInt(this.energySlider.value);
             const happiness = parseInt(this.happinessSlider.value);
             const calmness = parseInt(this.calmnessSlider.value);
+            const genre = this.genreSelect.value;
             
             const width = this.visualizer.width;
             const height = this.visualizer.height;
@@ -260,16 +466,27 @@ class EmotionSymphony {
             // Clear canvas
             this.ctx.clearRect(0, 0, width, height);
             
+            // Genre-specific base colors
+            const genreColors = {
+                classical: { hue: 260, sat: 80 },
+                jazz: { hue: 40, sat: 85 },
+                electronic: { hue: 320, sat: 85 },
+                ambient: { hue: 160, sat: 75 },
+                cinematic: { hue: 210, sat: 80 }
+            };
+            
+            const baseColor = genreColors[genre] || genreColors.classical;
+            
             // Draw multiple layers of circles
             for (let i = 0; i < 5; i++) {
                 const time = Date.now() / 1000;
                 const pulse = Math.sin(time * (2 + energy / 50)) * 0.1;
                 const radius = baseRadius * (0.8 + i * 0.1) * (1 + pulse * (energy / 100));
                 
-                // Calculate color based on emotions
-                const hue = (happiness * 1.2 + time * 10) % 360;
-                const saturation = 70 + energy * 0.3;
-                const lightness = 50 + calmness * 0.3;
+                // Calculate color based on emotions and genre
+                const hue = (baseColor.hue + happiness * 0.5 + time * 10) % 360;
+                const saturation = baseColor.sat + energy * 0.2;
+                const lightness = 50 + calmness * 0.2;
                 
                 this.ctx.beginPath();
                 this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
@@ -315,6 +532,8 @@ class EmotionSymphony {
             energy: parseInt(this.energySlider.value),
             happiness: parseInt(this.happinessSlider.value),
             calmness: parseInt(this.calmnessSlider.value),
+            genre: this.genreSelect.value,
+            instrument: this.instrumentSelect.value,
             notes: this.currentNotes
         };
         
@@ -336,7 +555,7 @@ class EmotionSymphony {
         // Update timeline
         this.renderTimeline();
         
-        // Show success message (you could add a toast notification here)
+        // Show success message
         alert('Today\'s emotion saved to your journey!');
         
         // Show share modal
@@ -356,7 +575,7 @@ class EmotionSymphony {
             return;
         }
         
-        this.emotionHistory.slice(0, 14).forEach(day => { // Show last 14 days
+        this.emotionHistory.slice(0, 14).forEach(day => {
             const item = document.createElement('div');
             item.className = 'timeline-item';
             item.onclick = () => this.replayDay(day);
@@ -364,15 +583,25 @@ class EmotionSymphony {
             const date = new Date(day.date);
             const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
             
+            // Genre icon
+            const genreIcons = {
+                classical: '🎻',
+                jazz: '🎷',
+                electronic: '🎛️',
+                ambient: '🌊',
+                cinematic: '🎬'
+            };
+            
             item.innerHTML = `
                 <div class="timeline-date">${dateStr}</div>
+                <div class="timeline-genre">${genreIcons[day.genre] || '🎵'}</div>
                 <div class="timeline-emotions">
                     <div class="emotion-dot" style="background: var(--energy-color); opacity: ${day.energy / 100}"></div>
                     <div class="emotion-dot" style="background: var(--happiness-color); opacity: ${day.happiness / 100}"></div>
                     <div class="emotion-dot" style="background: var(--calmness-color); opacity: ${day.calmness / 100}"></div>
                 </div>
                 <div class="timeline-preview">
-                    ${day.notes ? day.notes.slice(0, 3).map(n => n.replace('4', '')).join(' ') : '...'}
+                    ${day.notes ? day.notes.slice(0, 3).map(n => n.replace(/[0-9]/g, '')).join(' ') : '...'}
                 </div>
             `;
             
@@ -385,6 +614,17 @@ class EmotionSymphony {
         this.energySlider.value = day.energy;
         this.happinessSlider.value = day.happiness;
         this.calmnessSlider.value = day.calmness;
+        
+        // Set genre and instrument
+        if (day.genre) {
+            this.genreSelect.value = day.genre;
+            this.updateGenreMood();
+        }
+        
+        if (day.instrument) {
+            this.instrumentSelect.value = day.instrument;
+            this.updateInstrument(day.instrument);
+        }
         
         this.updateSliderDisplays();
         
@@ -416,6 +656,14 @@ class EmotionSymphony {
             this.emotionalFingerprint.appendChild(bar);
         });
         
+        // Add genre info to modal
+        const genreInfo = document.createElement('p');
+        genreInfo.style.marginTop = '1rem';
+        genreInfo.style.fontSize = '0.9rem';
+        genreInfo.style.color = 'var(--text-secondary)';
+        genreInfo.innerHTML = `Genre: ${this.genreSelect.options[this.genreSelect.selectedIndex].text} | Instrument: ${this.instrumentSelect.options[this.instrumentSelect.selectedIndex].text}`;
+        this.emotionalFingerprint.appendChild(genreInfo);
+        
         this.shareModal.classList.add('show');
     }
 
@@ -423,12 +671,16 @@ class EmotionSymphony {
         const energy = this.energySlider.value;
         const happiness = this.happinessSlider.value;
         const calmness = this.calmnessSlider.value;
+        const genre = this.genreSelect.value;
+        const instrument = this.instrumentSelect.value;
         
-        // Create a shareable URL with emotion parameters
+        // Create a shareable URL with all parameters
         const url = new URL(window.location.href);
         url.searchParams.set('e', energy);
         url.searchParams.set('h', happiness);
         url.searchParams.set('c', calmness);
+        url.searchParams.set('g', genre);
+        url.searchParams.set('i', instrument);
         
         // Copy to clipboard
         navigator.clipboard.writeText(url.toString()).then(() => {
@@ -443,11 +695,23 @@ class EmotionSymphony {
         const energy = urlParams.get('e');
         const happiness = urlParams.get('h');
         const calmness = urlParams.get('c');
+        const genre = urlParams.get('g');
+        const instrument = urlParams.get('i');
         
         if (energy && happiness && calmness) {
             this.energySlider.value = energy;
             this.happinessSlider.value = happiness;
             this.calmnessSlider.value = calmness;
+            
+            if (genre) {
+                this.genreSelect.value = genre;
+                this.updateGenreMood();
+            }
+            
+            if (instrument) {
+                this.instrumentSelect.value = instrument;
+                this.updateInstrument(instrument);
+            }
             
             this.updateSliderDisplays();
             setTimeout(() => this.playEmotion(), 500);
