@@ -118,6 +118,46 @@
                 </div>
             </div>
 
+            <!-- Genre & Instrument Selection - NEW! -->
+            <div class="music-controls">
+                <div class="control-row">
+                    <div class="control-group">
+                        <label class="control-label">
+                            <i class="fas fa-guitar"></i> Genre
+                        </label>
+                        <select id="genreSelect" class="genre-select">
+                            <option value="classical">🎻 Classical</option>
+                            <option value="jazz">🎷 Jazz</option>
+                            <option value="electronic">🎛️ Electronic</option>
+                            <option value="ambient">🌊 Ambient</option>
+                            <option value="cinematic">🎬 Cinematic</option>
+                        </select>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label class="control-label">
+                            <i class="fas fa-piano"></i> Instrument
+                        </label>
+                        <select id="instrumentSelect" class="instrument-select">
+                            <option value="piano">🎹 Piano</option>
+                            <option value="guitar">🎸 Guitar</option>
+                            <option value="strings">🎻 Strings</option>
+                            <option value="flute">🎵 Flute</option>
+                            <option value="synth">🎛️ Synth</option>
+                            <option value="bell">🔔 Music Box</option>
+                            <option value="pad">💫 Dream Pad</option>
+                            <option value="bass">🎸 Bass</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Genre Mood Indicator -->
+                <div class="genre-mood" id="genreMood">
+                    <span class="mood-icon">🎻</span>
+                    <span class="mood-text">Elegant & Refined</span>
+                </div>
+            </div>
+
             <!-- Action Buttons -->
             <div class="action-buttons">
                 <button id="playButton" class="btn btn-primary">
