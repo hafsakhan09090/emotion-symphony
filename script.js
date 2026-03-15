@@ -24,10 +24,18 @@ class EmotionSymphony {
         this.emotionalFingerprint = document.getElementById('emotionalFingerprint');
         this.copyShareLink = document.getElementById('copyShareLink');
         
-        // NEW: Genre & Instrument Elements
+        // Genre & Instrument Elements
         this.genreSelect = document.getElementById('genreSelect');
         this.instrumentSelect = document.getElementById('instrumentSelect');
         this.genreMood = document.getElementById('genreMood');
+        
+        // Duration Elements
+        this.durationSelect = document.getElementById('durationSelect');
+        this.minutesRemaining = document.getElementById('minutesRemaining');
+        this.secondsRemaining = document.getElementById('secondsRemaining');
+        this.progressBar = document.getElementById('progressBar');
+        this.progressContainer = document.getElementById('progressContainer');
+        this.timeRemaining = document.getElementById('timeRemaining');
 
         // Audio Properties
         this.synth = null;
@@ -36,6 +44,13 @@ class EmotionSymphony {
         this.animationFrame = null;
         this.currentInstrument = 'piano';
         this.currentGenre = 'classical';
+        
+        // Timer Properties
+        this.startTime = null;
+        this.timerInterval = null;
+        this.totalDuration = 300; // 5 minutes default
+        this.elapsedTime = 0;
+        this.melodyInterval = null;
 
         // Emotion History
         this.emotionHistory = this.loadHistory();
@@ -68,6 +83,9 @@ class EmotionSymphony {
         
         // Update genre mood
         this.updateGenreMood();
+        
+        // Initialize duration display
+        this.updateDurationDisplay();
     }
 
     initSynth() {
@@ -139,8 +157,10 @@ class EmotionSymphony {
         this.synth.connect(delay);
         
         // Update visualizer class for genre-specific glow
-        this.visualizer.closest('.visualizer-container').className = 
-            `visualizer-container ${genre}`;
+        const visualizerContainer = this.visualizer.closest('.visualizer-container');
+        if (visualizerContainer) {
+            visualizerContainer.className = `visualizer-container ${genre}`;
+        }
     }
 
     updateGenreMood() {
@@ -249,17 +269,14 @@ class EmotionSymphony {
         
         // Generate notes with emotion-based variations
         const notes = [];
-        const pattern = [];
         
         for (let i = 0; i < numNotes; i++) {
             let noteIndex;
             
             // Create patterns based on genre
             if (genre === 'jazz' && i % 2 === 0) {
-                // Jazz often uses walking bass patterns
                 noteIndex = (i * 2) % scale.length;
             } else if (genre === 'electronic') {
-                // Electronic often uses repetitive patterns
                 noteIndex = i % 4;
             } else {
                 noteIndex = Math.floor(Math.random() * scale.length);
@@ -273,11 +290,11 @@ class EmotionSymphony {
             }
             
             if (genre === 'jazz' && happiness < 40) {
-                note += 'b'; // Add flats for sad jazz
+                note += 'b';
             }
             
             if (genre === 'electronic' && Math.random() > 0.8) {
-                note += '#'; // Add sharps for electronic tension
+                note += '#';
             }
             
             notes.push(note);
@@ -292,7 +309,7 @@ class EmotionSymphony {
         this.happinessSlider.addEventListener('input', () => this.updateSliderDisplays());
         this.calmnessSlider.addEventListener('input', () => this.updateSliderDisplays());
         
-        // NEW: Genre & Instrument listeners
+        // Genre & Instrument listeners
         this.genreSelect.addEventListener('change', () => {
             this.updateGenreMood();
             this.updateGenreEffects(this.genreSelect.value);
@@ -303,6 +320,14 @@ class EmotionSymphony {
         
         this.instrumentSelect.addEventListener('change', () => {
             this.updateInstrument(this.instrumentSelect.value);
+            if (this.isPlaying) {
+                this.stopMusic();
+            }
+        });
+        
+        // Duration change listener
+        this.durationSelect.addEventListener('change', () => {
+            this.updateDurationDisplay();
         });
         
         // Button clicks
@@ -311,9 +336,12 @@ class EmotionSymphony {
         this.saveButton.addEventListener('click', () => this.saveToday());
         
         // Share modal
-        document.querySelector('.close-modal').addEventListener('click', () => {
-            this.shareModal.classList.remove('show');
-        });
+        const closeModal = document.querySelector('.close-modal');
+        if (closeModal) {
+            closeModal.addEventListener('click', () => {
+                this.shareModal.classList.remove('show');
+            });
+        }
         
         this.copyShareLink.addEventListener('click', () => this.copyShareableLink());
         
@@ -347,69 +375,135 @@ class EmotionSymphony {
         this.currentDateSpan.textContent = now.toLocaleDateString('en-US', options);
     }
 
+    // Update duration display
+    updateDurationDisplay() {
+        const totalSeconds = parseInt(this.durationSelect.value);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        
+        this.minutesRemaining.textContent = minutes;
+        this.secondsRemaining.textContent = seconds.toString().padStart(2, '0');
+        this.totalDuration = totalSeconds;
+        this.elapsedTime = 0;
+        this.updateProgressBar();
+    }
+
+    // Update progress bar
+    updateProgressBar() {
+        const progress = (this.elapsedTime / this.totalDuration) * 100;
+        this.progressBar.style.width = `${Math.min(progress, 100)}%`;
+        
+        // Update time display
+        const remaining = this.totalDuration - this.elapsedTime;
+        const minutes = Math.floor(remaining / 60);
+        const seconds = Math.floor(remaining % 60);
+        
+        this.minutesRemaining.textContent = minutes;
+        this.secondsRemaining.textContent = seconds.toString().padStart(2, '0');
+        
+        // Add warning classes based on time remaining
+        this.timeRemaining.classList.remove('time-warning', 'time-critical');
+        if (remaining <= 30 && remaining > 10) {
+            this.timeRemaining.classList.add('time-warning');
+        } else if (remaining <= 10) {
+            this.timeRemaining.classList.add('time-critical');
+        }
+    }
+
+    // Start timer
+    startTimer() {
+        this.startTime = Date.now() - (this.elapsedTime * 1000);
+        
+        this.timerInterval = setInterval(() => {
+            if (!this.isPlaying) return;
+            
+            this.elapsedTime = (Date.now() - this.startTime) / 1000;
+            
+            if (this.elapsedTime >= this.totalDuration) {
+                this.stopMusic();
+                return;
+            }
+            
+            this.updateProgressBar();
+        }, 100);
+    }
+
+    // Start continuous melody
+    startContinuousMelody() {
+        const energy = parseInt(this.energySlider.value);
+        const happiness = parseInt(this.happinessSlider.value);
+        const calmness = parseInt(this.calmnessSlider.value);
+        
+        const generateAndPlay = () => {
+            if (!this.isPlaying) return;
+            
+            const { notes, tempo } = this.generateMelody(energy, happiness, calmness);
+            this.currentNotes = notes;
+            
+            // Display the notes
+            this.displayNotes(notes);
+            
+            const now = Tone.now();
+            let time = now;
+            
+            notes.forEach((note, index) => {
+                let duration;
+                const genre = this.genreSelect.value;
+                
+                if (genre === 'jazz') {
+                    duration = index % 2 === 0 ? '4n' : '8n';
+                } else if (genre === 'ambient') {
+                    duration = '2n';
+                } else if (genre === 'cinematic') {
+                    duration = calmness < 30 ? '4n' : '2n';
+                } else {
+                    duration = calmness < 30 ? '8n' : calmness > 70 ? '2n' : '4n';
+                }
+                
+                const velocity = happiness / 100;
+                this.synth.triggerAttackRelease(note, duration, time, velocity);
+                
+                // Genre-specific spacing
+                if (genre === 'jazz') {
+                    time += 0.3;
+                } else if (genre === 'ambient') {
+                    time += 0.8;
+                } else {
+                    time += calmness < 30 ? 0.2 : calmness > 70 ? 0.8 : 0.4;
+                }
+            });
+            
+            // Calculate next generation time
+            const patternDuration = (time - now) * 1000;
+            setTimeout(generateAndPlay, patternDuration);
+        };
+        
+        generateAndPlay();
+    }
+
     async playEmotion() {
         if (this.isPlaying) {
             this.stopMusic();
         }
         
-        const energy = parseInt(this.energySlider.value);
-        const happiness = parseInt(this.happinessSlider.value);
-        const calmness = parseInt(this.calmnessSlider.value);
+        // Update duration display
+        this.updateDurationDisplay();
         
-        // Generate melody with current genre
-        const { notes, tempo } = this.generateMelody(energy, happiness, calmness);
-        this.currentNotes = notes;
-        
-        // Start Tone.js audio context (required by browsers)
+        // Start Tone.js audio context
         if (Tone.context.state !== 'running') {
             await Tone.start();
             await Tone.context.resume();
         }
         
-        // Schedule notes with genre-specific timing
-        const now = Tone.now();
-        let time = now;
-        
-        notes.forEach((note, index) => {
-            // Genre-specific durations
-            let duration;
-            const genre = this.genreSelect.value;
-            
-            if (genre === 'jazz') {
-                duration = index % 2 === 0 ? '4n' : '8n';
-            } else if (genre === 'ambient') {
-                duration = '2n';
-            } else if (genre === 'cinematic') {
-                duration = calmness < 30 ? '4n' : '2n';
-            } else {
-                duration = calmness < 30 ? '8n' : calmness > 70 ? '2n' : '4n';
-            }
-            
-            // Velocity based on happiness
-            const velocity = happiness / 100;
-            
-            this.synth.triggerAttackRelease(note, duration, time, velocity);
-            
-            // Genre-specific spacing
-            if (genre === 'jazz') {
-                time += 0.3;
-            } else if (genre === 'ambient') {
-                time += 0.8;
-            } else {
-                time += calmness < 30 ? 0.2 : calmness > 70 ? 0.8 : 0.4;
-            }
-        });
-        
         this.isPlaying = true;
         this.playButton.innerHTML = '<i class="fas fa-pause"></i> Playing...';
+        this.playButton.classList.add('is-playing');
         
-        // Display the notes
-        this.displayNotes(notes);
+        // Start continuous melody
+        this.startContinuousMelody();
         
-        // Auto-stop after notes finish
-        setTimeout(() => {
-            this.stopMusic();
-        }, (notes.length * 1000) / (tempo / 60));
+        // Start timer
+        this.startTimer();
     }
 
     stopMusic() {
@@ -418,6 +512,20 @@ class EmotionSymphony {
             Tone.Transport.stop();
             this.isPlaying = false;
             this.playButton.innerHTML = '<i class="fas fa-play"></i> Play My Emotion';
+            this.playButton.classList.remove('is-playing');
+            
+            // Clear timer
+            if (this.timerInterval) {
+                clearInterval(this.timerInterval);
+                this.timerInterval = null;
+            }
+            
+            // Reset progress
+            this.elapsedTime = 0;
+            this.updateProgressBar();
+            
+            // Remove warning classes
+            this.timeRemaining.classList.remove('time-warning', 'time-critical');
         }
     }
 
@@ -534,6 +642,7 @@ class EmotionSymphony {
             calmness: parseInt(this.calmnessSlider.value),
             genre: this.genreSelect.value,
             instrument: this.instrumentSelect.value,
+            duration: parseInt(this.durationSelect.value),
             notes: this.currentNotes
         };
         
@@ -603,6 +712,7 @@ class EmotionSymphony {
                 <div class="timeline-preview">
                     ${day.notes ? day.notes.slice(0, 3).map(n => n.replace(/[0-9]/g, '')).join(' ') : '...'}
                 </div>
+                ${day.duration ? `<div class="timeline-duration">${day.duration/60}min</div>` : ''}
             `;
             
             this.timeline.appendChild(item);
@@ -619,11 +729,17 @@ class EmotionSymphony {
         if (day.genre) {
             this.genreSelect.value = day.genre;
             this.updateGenreMood();
+            this.updateGenreEffects(day.genre);
         }
         
         if (day.instrument) {
             this.instrumentSelect.value = day.instrument;
             this.updateInstrument(day.instrument);
+        }
+        
+        if (day.duration) {
+            this.durationSelect.value = day.duration;
+            this.updateDurationDisplay();
         }
         
         this.updateSliderDisplays();
@@ -656,13 +772,42 @@ class EmotionSymphony {
             this.emotionalFingerprint.appendChild(bar);
         });
         
-        // Add genre info to modal
-        const genreInfo = document.createElement('p');
-        genreInfo.style.marginTop = '1rem';
-        genreInfo.style.fontSize = '0.9rem';
-        genreInfo.style.color = 'var(--text-secondary)';
-        genreInfo.innerHTML = `Genre: ${this.genreSelect.options[this.genreSelect.selectedIndex].text} | Instrument: ${this.instrumentSelect.options[this.instrumentSelect.selectedIndex].text}`;
-        this.emotionalFingerprint.appendChild(genreInfo);
+        // Add genre and duration info to modal
+        const info = document.createElement('div');
+        info.style.marginTop = '1rem';
+        info.style.padding = '1rem';
+        info.style.background = 'rgba(255,255,255,0.1)';
+        info.style.borderRadius = 'var(--radius-lg)';
+        info.style.textAlign = 'center';
+        
+        const genreIcons = {
+            classical: '🎻',
+            jazz: '🎷',
+            electronic: '🎛️',
+            ambient: '🌊',
+            cinematic: '🎬'
+        };
+        
+        const instrumentIcons = {
+            piano: '🎹',
+            guitar: '🎸',
+            strings: '🎻',
+            flute: '🎵',
+            synth: '🎛️',
+            bell: '🔔',
+            pad: '💫',
+            bass: '🎸'
+        };
+        
+        info.innerHTML = `
+            <div style="display: flex; justify-content: center; gap: 2rem; margin-bottom: 0.5rem;">
+                <span>${genreIcons[emotion.genre] || '🎵'} ${emotion.genre}</span>
+                <span>${instrumentIcons[emotion.instrument] || '🎹'} ${emotion.instrument}</span>
+                <span>⏱️ ${emotion.duration/60}min</span>
+            </div>
+        `;
+        
+        this.emotionalFingerprint.appendChild(info);
         
         this.shareModal.classList.add('show');
     }
@@ -673,6 +818,7 @@ class EmotionSymphony {
         const calmness = this.calmnessSlider.value;
         const genre = this.genreSelect.value;
         const instrument = this.instrumentSelect.value;
+        const duration = this.durationSelect.value;
         
         // Create a shareable URL with all parameters
         const url = new URL(window.location.href);
@@ -681,6 +827,7 @@ class EmotionSymphony {
         url.searchParams.set('c', calmness);
         url.searchParams.set('g', genre);
         url.searchParams.set('i', instrument);
+        url.searchParams.set('d', duration);
         
         // Copy to clipboard
         navigator.clipboard.writeText(url.toString()).then(() => {
@@ -697,6 +844,7 @@ class EmotionSymphony {
         const calmness = urlParams.get('c');
         const genre = urlParams.get('g');
         const instrument = urlParams.get('i');
+        const duration = urlParams.get('d');
         
         if (energy && happiness && calmness) {
             this.energySlider.value = energy;
@@ -706,11 +854,17 @@ class EmotionSymphony {
             if (genre) {
                 this.genreSelect.value = genre;
                 this.updateGenreMood();
+                this.updateGenreEffects(genre);
             }
             
             if (instrument) {
                 this.instrumentSelect.value = instrument;
                 this.updateInstrument(instrument);
+            }
+            
+            if (duration) {
+                this.durationSelect.value = duration;
+                this.updateDurationDisplay();
             }
             
             this.updateSliderDisplays();
@@ -721,5 +875,30 @@ class EmotionSymphony {
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new EmotionSymphony();
+    // Make sure all required elements exist
+    const requiredElements = [
+        'visualizer', 'energy', 'happiness', 'calmness',
+        'energyValue', 'happinessValue', 'calmnessValue',
+        'playButton', 'stopButton', 'saveButton',
+        'compositionDisplay', 'noteSequence', 'timeline',
+        'currentDate', 'energyFill', 'happinessFill', 'calmnessFill',
+        'shareModal', 'emotionalFingerprint', 'copyShareLink',
+        'genreSelect', 'instrumentSelect', 'genreMood',
+        'durationSelect', 'minutesRemaining', 'secondsRemaining',
+        'progressBar', 'progressContainer', 'timeRemaining'
+    ];
+    
+    let allElementsExist = true;
+    requiredElements.forEach(id => {
+        if (!document.getElementById(id)) {
+            console.error(`Missing element: ${id}`);
+            allElementsExist = false;
+        }
+    });
+    
+    if (allElementsExist) {
+        new EmotionSymphony();
+    } else {
+        console.error('Some required elements are missing from the DOM');
+    }
 });
